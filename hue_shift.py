@@ -22,7 +22,7 @@ debug_mode = False
 autostart = False
 hue_velocity = 0.0  # Degrees per second
 hue_shift = 0.0 # Angle of the hue shift (-180 to 180, but OBS seems to handle values outside of this range properly)
-source_id = ""
+source_name = ""
 
 # Local vars
 active = False
@@ -59,6 +59,7 @@ def script_load(settings):
     script_update(settings)
 
     if autostart:
+        debug('Hue Shift autostart is enabled, starting...')
         active = True
         reload()
 
@@ -82,16 +83,16 @@ def script_properties():
     sources = obs.obs_enum_sources()
     if sources is not None:
         for source in sources:
-            id = obs.obs_source_get_id(source)
             name = obs.obs_source_get_name(source)
-            obs.obs_property_list_add_string(source_prop, id, name)
+            obs.obs_property_list_add_string(source_prop, name, name)
 
     obs.source_list_release(sources)
 
     # Bind UI elements
     obs.obs_properties_add_button(props, "start_button", "Start", start_button_clicked)
     obs.obs_properties_add_button(props, "stop_button", "Stop", stop_button_clicked)
-    obs.obs_properties_add_bool(props, "autostart_checkbox", "Autostart", autostart_checkbox_clicked)
+    obs.obs_properties_add_bool(props, "autostart", "Autostart")
+    obs.obs_properties_add_bool(props, "debug_mode", "Debug mode?")
 
     return props
 
@@ -114,28 +115,29 @@ def script_unload():
 
 # Called when a setting changes
 def script_update(settings):
-    global debug_mode, autostart, hue_velocity, hue_shift, source_id
+    global debug_mode, autostart, hue_shift_velocity, hue_shift, source_name
     debug("Updating settings.")
 
     # Update globals with new settings
     debug_mode = obs.obs_data_get_bool(settings, "debug_mode")
     autostart = obs.obs_data_get_bool(settings, "autostart")
-    hue_velocity = obs.obs_data_get_double(settings, "hue_velocity")
-    source_id = obs.obs_data_get_string(settings, "source_id")
+    hue_shift_velocity = obs.obs_data_get_double(settings, "hue_shift_velocity")
+    source_name = obs.obs_data_get_string(settings, "source")
 
     # Reset hue
     update_hue(True)
 
 # Update the selected source's hue
 def update_hue(reset=False):
-    global source_id
+    global source_name
     global hue_shift
 
     # If the update is called with reset intention, set the hue to normal (0)
     if reset:
+        debug("Reset hue to 0")
         hue_shift = 0
 
-    source = obs.obs_get_source_by_name(source_id)
+    source = obs.obs_get_source_by_name(source_name)
     if source is not None:
         hue_filter = obs.obs_source_get_filter_by_name(source, "Hue Shift")
         if hue_filter is not None:
@@ -148,21 +150,23 @@ def update_hue(reset=False):
                 "hue_shift",
                 hue_shift
             )
+            debug("Setting hue to " + str(hue_shift))
             obs.obs_source_update(hue_filter, filter_settings)
 
             # Release the resources
             obs.obs_data_release(filter_settings)
             obs.obs_source_release(hue_filter)
 
+        # Release the resources
         obs.obs_source_release(source)
 
 def timer_callback():
     global hue_shift
-    global hue_velocity
+    global hue_shift_velocity
     global update_interval
 
     # Update the hue_shift value. Velocity is degrees / second, update_interval is in milliseconds
-    hue_shift += hue_velocity * update_interval / 1000
+    hue_shift += hue_shift_velocity * (update_interval / 1000)
     hue_shift = hue_shift % 360
 
     update_hue()
@@ -174,12 +178,13 @@ def reload():
     global active
     global update_interval
 
-    # Attempt to remove the old timer
-    if timer_running:
-        obs.timer_remove(timer_callback)
-        timer_running = False
-
     if active:
+        # Attempt to remove the old timer
+        if timer_running:
+            print("🟥 Stopping old hue shift timer.")
+            obs.timer_remove(timer_callback)
+            timer_running = False
+
         print("🟢 Started hue shift timer.")
         obs.timer_add(timer_callback, update_interval)
         timer_running = True
@@ -193,23 +198,23 @@ def reload():
 
 def update_source(cd, state):
     global active
-    global source_id
+    global source_name
 
     # Get the current source
     source = obs.calldata_source(cd, "source")
 
     # If we have a source selected set the active state
     if source is not None:
-        id = obs.obs_source_get_id(source)
+        name = obs.obs_source_get_name(source)
 
         # If this source is our selected one then activate hue shift
         # Otherwise stop it
-        if id == source_id:
-            print("ℹ️ Setting our source to \"" + str(state) + "\".")
+        if name == source_name:
+            debug("ℹ️ Setting our source to \"" + str(state) + "\".")
             active = state
             reload()
         else:
-            print("ℹ️ Looking for " + source_id + " found " + id)
+            debug("ℹ️ Looking for " + source_name + " found " + name)
 
 def start_button_clicked(props, p):
     print("ℹ️ Start button clicked")
@@ -222,12 +227,6 @@ def stop_button_clicked(props, p):
     global active
     active = False
     reload()
-
-def autostart_checkbox_clicked(props, p):
-    global autostart
-    print("ℹ️ Autostart checkbox clicked")
-    # Flip autostart
-    autostart = not autostart
 
 def source_activated(cd):
     update_source(cd, True)
