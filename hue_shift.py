@@ -1,19 +1,20 @@
 # How to use this script in OBS:
-# You need Python 3.6 installed
-# 1. Open OBS > Tools > Scripts
-# 2. Copypaste the Python 3.6 install directory into Python Settings tab.
-# 3. Download this file onto your computer and put it somewhere safe
-# 4. Add the script to the list of Loaded Scripts by clicking the + at the bottom left
-# 5. Select the script from the list and select the correct output source you want to apply the effect to.
-#       If you can't find the correct source, scroll to the bottom of the file to see if your source is filtered out
-#       The source you selected must have a Color Correction filter, that has been renamed to "Hue Shift".
-#           The script won't work otherwise. I couldn't figure out how to list all the filters in a dropdown because
-#           OBS' documentation on C types in Python are poor.
-# 6. Set your desired effect velocity (360 = 1 rainbow per second)
-# 7. Click Start / Stop
-# The script comes as-is and hasn't been tested for long periods of time for memory leaks etc
 #
-# The code is released under the MIT license.
+# Checklist:
+# 1. OBS
+# 2. Python 3.6 (https://www.python.org/ftp/python/3.6.8/python-3.6.8-amd64.exe)
+#
+#
+# Adding the script:
+# 1. Open OBS > Tools > Scripts
+# 2. Start menu > type "cmd" > click command prompt > type "py --list-paths" > Take note of the line starting with "-3.6-64"
+# 3. Copy+paste the directory(something like C:\Users\my_username\AppData\Local\Programs\Python\Python36\python.exe) from step 2 into the "Python Settings" tab
+# 4. Download this file onto your computer and put it somewhere safe (If this page looks like a website look for the "Raw" button before saving this file)
+# 5. In OBS with the scripts windows still open click the + at the bottom left and select this file that you just downloaded
+# 6. Select the "Hue Shift" from the list and select the correct output source you want to apply the effect to
+#    NOTE: The source you selected must have a Color Correction filter that has been renamed to "Hue Shift"
+# 7. Set your desired effect velocity (360 = 1 rainbow per second)
+# 8. Click Start / Stop
 
 import obspython as obs
 
